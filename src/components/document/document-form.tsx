@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Save, X, Paperclip, FileText, Trash2, Plus, Eye, Edit3 } from 'lucide-react';
+import { Save, X, Paperclip, FileText, Trash2, Plus, Eye, Edit3, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentViewer } from './document-viewer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -129,9 +129,18 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
       <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border/50 shadow-xl sticky top-4 z-50 backdrop-blur-sm bg-card/90">
         <div>
           <h2 className="text-2xl font-headline font-bold text-foreground">{initialData ? 'Edit' : 'New'} {type.label}</h2>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-black">Architectural Input Session</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-black">Architectural Session</p>
         </div>
         <div className="flex gap-3">
+          {initialData?.document_id && (
+            <Button 
+              variant="outline" 
+              onClick={() => window.open(`/document/${initialData.document_id}/view`, '_blank')}
+              className="gap-2 border-accent/30 text-accent hover:bg-accent/10"
+            >
+              <ExternalLink className="w-4 h-4" /> Open Live
+            </Button>
+          )}
           <Button variant="outline" onClick={onCancel} className="gap-2 border-border/50">
             <X className="w-4 h-4" /> Cancel
           </Button>
@@ -173,7 +182,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                       .sort((a, b) => a.order - b.order)
                       .map((field) => (
                         <div key={field.key} className="space-y-2">
-                          <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground/80 flex items-center gap-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 flex items-center gap-1.5">
                             {field.label}
                             {field.required && <span className="text-destructive">*</span>}
                           </Label>

@@ -34,12 +34,12 @@ export function StorageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveDocuments = (docs: DocumentInstance[]) => {
-    setDocuments(docs);
+    setDocuments([...docs]);
     localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(docs));
   };
 
   const saveTypes = (types: DocumentType[]) => {
-    setDocumentTypes(types);
+    setDocumentTypes([...types]);
     localStorage.setItem(STORAGE_KEY_TYPES, JSON.stringify(types));
   };
 
