@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -6,12 +7,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Calendar, Paperclip, Hash, User, Building2, Globe } from 'lucide-react';
+import { FileText, Calendar, Paperclip, Hash, Building2, Globe } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface DocumentViewerProps {
-  doc: DocumentInstance;
-}
 
 export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
   const activeFields = doc.fields.filter(f => f.enabled);
@@ -20,7 +17,6 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <Card className="border-border/50 shadow-2xl bg-card overflow-hidden">
-        {/* Header Section */}
         <div className="bg-primary/5 p-12 border-b border-border/50 relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10">
              <Building2 className="w-32 h-32 text-primary" />
@@ -52,7 +48,7 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
                   <Paperclip className="w-6 h-6 text-accent" />
                 </div>
                 <div className="pr-4">
-                  <p className="text-xs font-bold text-accent uppercase tracking-widest">Attachment</p>
+                  <p className="text-xs font-bold text-accent uppercase tracking-widest">Załącznik</p>
                   <p className="text-sm font-bold truncate max-w-[150px]">{doc.attachment.file_name}</p>
                 </div>
               </div>
@@ -61,7 +57,6 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
         </div>
 
         <CardContent className="p-12 space-y-12">
-          {/* Main Fields Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
             {activeFields.sort((a, b) => a.order - b.order).map((field) => (
               <div key={field.key} className="space-y-1 group">
@@ -72,14 +67,13 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
                   {field.required && <div className="w-1 h-1 rounded-full bg-destructive" />}
                 </div>
                 <p className="text-lg font-headline font-bold text-foreground border-b border-border/20 pb-2 group-hover:border-primary/30 transition-all">
-                  {field.type === 'bool' ? (field.value ? 'YES' : 'NO') : field.value || '—'}
+                  {field.type === 'bool' ? (field.value ? 'TAK' : 'NIE') : field.value || '—'}
                 </p>
                 {field.description && <p className="text-[10px] text-muted-foreground italic mt-1">{field.description}</p>}
               </div>
             ))}
           </div>
 
-          {/* Tables Section */}
           {activeTables.map((table) => (
             <div key={table.key} className="space-y-6 pt-6">
               <div className="flex items-center gap-4">
@@ -104,7 +98,7 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
                         <TableRow key={idx} className="hover:bg-muted/10 border-b border-border/50 last:border-0">
                           {table.columns.filter(c => c.enabled).sort((a, b) => a.order - b.order).map(col => (
                             <TableCell key={col.key} className="px-6 py-5 font-medium text-sm">
-                              {col.type === 'bool' ? (row[col.key] ? 'Yes' : 'No') : row[col.key] || '—'}
+                              {col.type === 'bool' ? (row[col.key] ? 'Tak' : 'Nie') : row[col.key] || '—'}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -112,7 +106,7 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={table.columns.length} className="h-24 text-center text-muted-foreground italic">
-                          No data entries for this table.
+                          Brak danych w tej tabeli.
                         </TableCell>
                       </TableRow>
                     )}
@@ -122,7 +116,6 @@ export function DocumentViewer({ doc }: { doc: DocumentInstance }) {
             </div>
           ))}
 
-          {/* Footer Branding */}
           <div className="pt-12 flex justify-between items-center text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.2em] border-t border-border/30">
             <span>OpenForm Standard v1.0 Compliant</span>
             <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -112,7 +113,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
   const validate = () => {
     for (const field of fields.filter(f => f.enabled)) {
       if (field.required && (field.value === undefined || field.value === null || field.value === '')) {
-        toast({ title: "Validation Error", description: `Field "${field.label}" is required.`, variant: "destructive" });
+        toast({ title: "Validation Error", description: `Pole "${field.label}" jest wymagane.`, variant: "destructive" });
         return false;
       }
     }
@@ -129,7 +130,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
       <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border/50 shadow-xl sticky top-4 z-50 backdrop-blur-sm bg-card/90">
         <div>
           <h2 className="text-2xl font-headline font-bold text-foreground">{initialData ? 'Edit' : 'New'} {type.label}</h2>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest font-black">Architectural Session</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest font-black">OpenForm Studio Session</p>
         </div>
         <div className="flex gap-3">
           {initialData?.document_id && (
@@ -160,7 +161,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
               <Eye className="w-4 h-4" /> Live Preview
             </TabsTrigger>
             <TabsTrigger value="split" className="hidden lg:flex rounded-full px-8 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-md">
-              <div className="flex gap-0.5"><div className="w-1 h-3 bg-current opacity-50"/><div className="w-1 h-3 bg-current"/></div> Split View
+              Split View
             </TabsTrigger>
           </TabsList>
         </div>
@@ -314,7 +315,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
         </TabsContent>
 
         <TabsContent value="split" className="animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-250px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-300px)]">
             <Card className="overflow-auto border-border/50 p-6 bg-card">
               <h3 className="text-xs font-black uppercase text-primary mb-6">Quick Editor</h3>
               <div className="space-y-6">
