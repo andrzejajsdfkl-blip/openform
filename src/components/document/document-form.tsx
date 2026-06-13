@@ -38,11 +38,10 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
 
   const [attachment, setAttachment] = useState(initialData?.attachment || { included: false, file_name: '', mime_type: '', size: 0, base64: '' });
 
-  // Compute the live document instance for preview
   const livePreviewDoc = useMemo((): DocumentInstance => ({
     format: "OpenFormFile",
     format_version: "1.0",
-    document_id: initialData?.document_id || 'preview-mode',
+    document_id: initialData?.document_id || Math.random().toString(36).substring(7),
     created_at: initialData?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
     document_type: {
@@ -50,8 +49,8 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
       label: type.label,
       allow_file: type.allow_file
     },
-    fields: fields.filter(f => f.enabled),
-    tables: tables.filter(t => t.enabled),
+    fields: fields,
+    tables: tables,
     attachment: attachment.included ? attachment : undefined
   }), [fields, tables, attachment, type, initialData]);
 
@@ -185,7 +184,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                                 checked={!!field.value} 
                                 onCheckedChange={(val) => handleFieldChange(field.key, val)} 
                               />
-                              <Label htmlFor={field.key} className="text-sm font-medium cursor-pointer">{field.placeholder || 'Active Status'}</Label>
+                              <Label htmlFor={field.key} className="text-sm font-medium cursor-pointer">{field.placeholder || 'Active'}</Label>
                             </div>
                           ) : field.type === 'date' ? (
                             <Input 
@@ -230,7 +229,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                         <TableRow className="bg-muted/30 border-b border-border/50">
                           {table.columns.filter(c => c.enabled).sort((a, b) => a.order - b.order).map(col => (
                             <TableHead key={col.key} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground py-4">
-                              {col.label} {col.required && <span className="text-destructive">*</span>}
+                              {col.label}
                             </TableHead>
                           ))}
                           <TableHead className="w-[50px]"></TableHead>
@@ -241,19 +240,11 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                           <TableRow key={rowIndex} className="hover:bg-muted/10 border-b border-border/50">
                             {table.columns.filter(c => c.enabled).sort((a, b) => a.order - b.order).map(col => (
                               <TableCell key={col.key} className="p-2">
-                                {col.type === 'bool' ? (
-                                  <Checkbox 
-                                    checked={!!row[col.key]} 
-                                    onCheckedChange={(val) => handleTableRowChange(table.key, rowIndex, col.key, val)} 
-                                  />
-                                ) : (
-                                  <Input 
-                                    type={col.type === 'date' ? 'date' : col.type === 'int' || col.type === 'decimal' ? 'number' : 'text'}
-                                    value={row[col.key] ?? ''}
-                                    onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
-                                    className="h-9 text-sm bg-transparent border-transparent hover:border-border/50 focus:bg-muted/30"
-                                  />
-                                )}
+                                <Input 
+                                  value={row[col.key] ?? ''}
+                                  onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
+                                  className="h-9 text-sm bg-transparent border-transparent hover:border-border/50 focus:bg-muted/30"
+                                />
                               </TableCell>
                             ))}
                             <TableCell>
@@ -283,27 +274,22 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                     <div className="space-y-4">
                       {attachment.included ? (
                         <div className="bg-muted/30 p-4 rounded-lg border border-border/50 flex items-start gap-4">
-                          <div className="bg-accent/20 p-3 rounded-lg">
-                            <FileText className="w-6 h-6 text-accent" />
-                          </div>
+                          <FileText className="w-6 h-6 text-accent" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold truncate">{attachment.file_name}</p>
                             <p className="text-xs text-muted-foreground">{(attachment.size / 1024).toFixed(1)} KB</p>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => setAttachment({ included: false, file_name: '', mime_type: '', size: 0, base64: '' })} className="text-muted-foreground hover:text-destructive shrink-0">
+                          <Button variant="ghost" size="icon" onClick={() => setAttachment({ included: false, file_name: '', mime_type: '', size: 0, base64: '' })} className="text-muted-foreground hover:text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       ) : (
                         <div className="border-2 border-dashed border-border/50 rounded-xl p-8 text-center bg-muted/10 hover:bg-muted/20 transition-colors cursor-pointer relative group">
-                          <Input type="file" id="file-upload" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
-                          <Label htmlFor="file-upload" className="space-y-3 pointer-events-none block">
-                            <div className="bg-accent/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto text-accent group-hover:bg-accent/20 transition-colors">
-                              <Plus className="w-6 h-6" />
-                            </div>
-                            <p className="text-sm font-bold">Add Evidence</p>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black opacity-50">PDF, JPG, PNG</p>
-                          </Label>
+                          <Input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFileChange} />
+                          <div className="space-y-2 pointer-events-none">
+                            <Plus className="w-8 h-8 mx-auto text-muted-foreground group-hover:text-primary" />
+                            <p className="text-sm font-bold">Add Attachment</p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -314,65 +300,29 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
           </div>
         </TabsContent>
 
-        <TabsContent value="preview" className="animate-in fade-in slide-in-from-bottom-4 duration-300 outline-none">
+        <TabsContent value="preview" className="animate-in fade-in duration-300">
           <DocumentViewer doc={livePreviewDoc} />
         </TabsContent>
 
-        <TabsContent value="split" className="animate-in fade-in duration-300 outline-none">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            {/* Minimalist Editor for Split View */}
-            <Card className="border-border/50 shadow-2xl h-[calc(100vh-250px)] overflow-auto scrollbar-hide">
-               <CardHeader className="sticky top-0 bg-card z-10 border-b border-border/50 py-4">
-                  <CardTitle className="text-sm font-black uppercase tracking-widest text-primary">Live Data Stream</CardTitle>
-               </CardHeader>
-               <CardContent className="p-6 space-y-6">
-                  <div className="space-y-6">
-                    {fields.filter(f => f.enabled).map(field => (
-                      <div key={field.key} className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground">{field.label}</Label>
-                        <Input 
-                          value={field.value || ''} 
-                          onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                          className="bg-muted/20 border-border/30 h-9 text-sm"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {tables.filter(t => t.enabled).map(table => (
-                    <div key={table.key} className="space-y-3 pt-4">
-                       <div className="flex justify-between items-center border-b border-border/50 pb-2">
-                         <h4 className="text-[10px] font-black uppercase text-primary">{table.label}</h4>
-                         <Button variant="ghost" size="sm" onClick={() => handleAddTableRow(table.key)} className="h-6 text-[10px] font-bold">+ Row</Button>
-                       </div>
-                       {(table.rows || []).map((row, rIdx) => (
-                         <div key={rIdx} className="grid grid-cols-3 gap-2 bg-muted/10 p-2 rounded-lg relative group">
-                            {table.columns.filter(c => c.enabled).map(col => (
-                              <Input 
-                                key={col.key}
-                                value={row[col.key] || ''}
-                                onChange={(e) => handleTableRowChange(table.key, rIdx, col.key, e.target.value)}
-                                className="h-7 text-[10px] bg-card border-border/20"
-                                placeholder={col.label}
-                              />
-                            ))}
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => handleRemoveTableRow(table.key, rIdx)}
-                              className="absolute -right-2 -top-2 h-5 w-5 rounded-full bg-destructive text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                         </div>
-                       ))}
+        <TabsContent value="split" className="animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-250px)]">
+            <Card className="overflow-auto border-border/50 p-6 bg-card">
+              <h3 className="text-xs font-black uppercase text-primary mb-6">Quick Editor</h3>
+              <div className="space-y-6">
+                 {fields.filter(f => f.enabled).map(field => (
+                    <div key={field.key} className="space-y-1">
+                      <Label className="text-[10px] font-bold uppercase">{field.label}</Label>
+                      <Input 
+                        value={field.value || ''} 
+                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                        className="bg-muted/20 border-border/30 h-8 text-sm"
+                      />
                     </div>
-                  ))}
-               </CardContent>
+                 ))}
+              </div>
             </Card>
-
-            {/* Live Preview Panel */}
-            <div className="h-[calc(100vh-250px)] overflow-auto border border-border/50 rounded-2xl shadow-2xl bg-muted/5 scrollbar-hide">
-               <DocumentViewer doc={livePreviewDoc} />
+            <div className="overflow-auto border border-border/50 rounded-xl bg-muted/5">
+              <DocumentViewer doc={livePreviewDoc} />
             </div>
           </div>
         </TabsContent>
