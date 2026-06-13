@@ -4,7 +4,7 @@ import React from 'react';
 import type { DocumentInstance } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Paperclip, MoreVertical, ExternalLink, Download } from 'lucide-react';
+import { Calendar, FileText, Paperclip, MoreVertical, ExternalLink, Download, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -67,14 +67,16 @@ export function DocumentRow({ doc }: { doc: DocumentInstance }) {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={downloadJson} className="h-8 gap-2 hover:bg-primary hover:text-primary-foreground border-border/50">
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
-            </Button>
-            <Button asChild size="sm" className="h-8 gap-2 bg-accent hover:bg-accent/80 text-white">
+            <Button variant="ghost" size="sm" asChild className="h-8 gap-2 border-border/50 hover:bg-muted">
               <Link href={`/document/${doc.document_id}`}>
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm" className="h-8 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold">
+              <Link href={`/document/${doc.document_id}/view`}>
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open</span>
+                <span>Open View</span>
               </Link>
             </Button>
           </div>
