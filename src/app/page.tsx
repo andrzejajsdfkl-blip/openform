@@ -18,8 +18,11 @@ export default function Dashboard() {
   if (!isLoaded) return null;
 
   const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.document_type.label.toLowerCase().includes(search.toLowerCase()) || 
-      doc.fields.some(f => f.value?.toString().toLowerCase().includes(search.toLowerCase()));
+    const searchLower = search.toLowerCase();
+    const matchesSearch = search === '' || 
+      doc.document_type.label.toLowerCase().includes(searchLower) || 
+      doc.fields.some(f => (f.value?.toString() || "").toLowerCase().includes(searchLower));
+    
     const matchesType = filterType ? doc.document_type.id === filterType : true;
     return matchesSearch && matchesType;
   });
