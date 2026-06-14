@@ -2,7 +2,313 @@ import sys
 import os
 import json
 import tkinter as tk
+import base64
+import subprocess
 from tkinter import ttk, messagebox, filedialog
+from pathlib import Path
+
+# ============================================================================
+# VALIDATION UTILITIES (from validate.py)
+# ============================================================================
+
+VALID_FIELD_TYPES = {"text", "date", "int", "decimal", "currency", "bool", "select"}
+
+def validate_structure(data):
+    """Validate the OpenForm JSON structure and return list of error messages."""
+    errors = []
+    
+    required_keys = ["format", "format_version", "document_id", "document_type", "fields", "tables"]
+    for key in required_keys:
+        if key not in data:
+            errors.append(f"Missing root key: '{key}'")
+    
+    if errors:
+        return errors
+    
+    if data.get("format") != "OpenFormFile":
+        errors.append(f"Invalid format value: '{data.get('format')}' (expected 'OpenFormFile')")
+    
+    doc_type = data.get("document_type")
+    if not isinstance(doc_type, dict) or "id" not in doc_type or "label" not in doc_type:
+        errors.append("Invalid 'document_type': must be an object with 'id' and 'label'")
+    
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        errors.append("'fields' must be a list")
+    else:
+        seen_keys = set()
+        for idx, field in enumerate(fields):
+            if not isinstance(field, dict):
+                errors.append(f"Field at index {idx} is not an object")
+                continue
+            key = field.get("key")
+            if not key:
+                errors.append(f"Field at index {idx} is missing 'key'")
+                continue
+            if key in seen_keys:
+                errors.append(f"Duplicate field key: '{key}'")
+            seen_keys.add(key)
+            
+            if "type" not in field:
+                errors.append(f"Field '{key}' is missing 'type'")
+            elif field["type"] not in VALID_FIELD_TYPES:
+                errors.append(f"Field '{key}' has invalid type: '{field['type']}'")
+            
+            if "label" not in field:
+                errors.append(f"Field '{key}' is missing 'label'")
+    
+    tables = data.get("tables")
+    if not isinstance(tables, list):
+        errors.append("'tables' must be a list")
+    else:
+        seen_tables = set()
+        for t_idx, table in enumerate(tables):
+            if not isinstance(table, dict):
+                errors.append(f"Table at index {t_idx} is not an object")
+                continue
+            tkey = table.get("key")
+            if not tkey:
+                errors.append(f"Table at index {t_idx} is missing 'key'")
+                continue
+            if tkey in seen_tables:
+                errors.append(f"Duplicate table key: '{tkey}'")
+            seen_tables.add(tkey)
+            
+            cols = table.get("columns")
+            if not isinstance(cols, list):
+                errors.append(f"Table '{tkey}' missing 'columns' list")
+                continue
+            seen_cols = set()
+            for c_idx, col in enumerate(cols):
+                if not isinstance(col, dict):
+                    errors.append(f"Column at index {c_idx} in table '{tkey}' is not an object")
+                    continue
+                ckey = col.get("key")
+                if not ckey:
+                    errors.append(f"A column in table '{tkey}' is missing 'key'")
+                    continue
+                if ckey in seen_cols:
+                    errors.append(f"Duplicate column key '{ckey}' in table '{tkey}'")
+                seen_cols.add(ckey)
+    
+    return errors
+
+# ============================================================================
+# PDF EXPORT UTILITIES (from export-pdf.py)
+# ============================================================================
+
+def export_to_pdf_internal(off_path, pdf_path=None):
+    """Export OpenForm document to PDF (internal implementation)."""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+    except ImportError:
+        return False, "reportlab is not installed. Please install: pip install reportlab"
+    
+    if not os.path.exists(off_path):
+        return False, f"File '{off_path}' not found."
+    
+    if not pdf_path:
+        pdf_path = str(Path(off_path).with_suffix(".pdf"))
+    
+    try:
+        with open(off_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception as e:
+        return False, f"Error loading JSON: {str(e)}"
+    
+    try:
+        doc = SimpleDocTemplate(
+            pdf_path,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
+        
+        styles = getSampleStyleSheet()
+        primary_color = colors.HexColor("#3b82f6")
+        secondary_color = colors.HexColor("#1d4ed8")
+        neutral_dark = colors.HexColor("#1f2937")
+        neutral_light = colors.HexColor("#f3f4f6")
+        border_color = colors.HexColor("#d1d5db")
+        
+        title_style = ParagraphStyle(
+            'DocTitle',
+            parent=styles['Heading1'],
+            fontName='Helvetica-Bold',
+            fontSize=22,
+            textColor=primary_color,
+            spaceAfter=15
+        )
+        
+        section_style = ParagraphStyle(
+            'SectionHeader',
+            parent=styles['Heading2'],
+            fontName='Helvetica-Bold',
+            fontSize=14,
+            textColor=secondary_color,
+            spaceBefore=12,
+            spaceAfter=8
+        )
+        
+        label_style = ParagraphStyle(
+            'FieldLabel',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=10,
+            textColor=colors.HexColor("#4b5563")
+        )
+        
+        val_style = ParagraphStyle(
+            'FieldValue',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=10,
+            textColor=neutral_dark
+        )
+        
+        table_header_style = ParagraphStyle(
+            'TableHeader',
+            parent=styles['Normal'],
+            fontName='Helvetica-Bold',
+            fontSize=9,
+            textColor=colors.white
+        )
+        
+        table_cell_style = ParagraphStyle(
+            'TableCell',
+            parent=styles['Normal'],
+            fontName='Helvetica',
+            fontSize=9,
+            textColor=neutral_dark
+        )
+        
+        story = []
+        
+        doc_title = data.get("document_type", {}).get("label", "OpenForm Document").upper()
+        story.append(Paragraph(doc_title, title_style))
+        story.append(Paragraph(f"<b>Document ID:</b> {data.get('document_id', 'N/A')}", val_style))
+        story.append(Paragraph(f"<b>Created:</b> {data.get('created_at', 'N/A')[:19].replace('T', ' ')}", val_style))
+        story.append(Spacer(1, 15))
+        
+        story.append(Paragraph("Fields & Metadata", section_style))
+        fields = [f for f in data.get("fields", []) if f.get("enabled", True)]
+        fields = sorted(fields, key=lambda x: x.get("order", 0))
+        
+        grid_data = []
+        current_row = []
+        
+        for field in fields:
+            label = field.get("label", "").upper()
+            val = field.get("value")
+            
+            if field.get("type") == "bool":
+                val_str = "YES" if val else "NO"
+            elif field.get("type") == "currency":
+                val_str = f"${val:.2f}" if val else "—"
+            else:
+                val_str = str(val) if val is not None else "—"
+            
+            cell_content = [
+                Paragraph(label, label_style),
+                Spacer(1, 2),
+                Paragraph(val_str, val_style),
+                Spacer(1, 8)
+            ]
+            
+            current_row.append(cell_content)
+            if len(current_row) == 2:
+                grid_data.append(current_row)
+                current_row = []
+        
+        if current_row:
+            current_row.append("")
+            grid_data.append(current_row)
+        
+        if grid_data:
+            t = Table(grid_data, colWidths=[270, 270])
+            t.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING', (0,0), (-1,-1), 8),
+                ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ]))
+            story.append(t)
+        
+        story.append(Spacer(1, 15))
+        
+        tables = [t for t in data.get("tables", []) if t.get("enabled", True)]
+        for table in tables:
+            story.append(Paragraph(table.get("label", "Table"), section_style))
+            
+            cols = sorted([c for c in table.get("columns", []) if c.get("enabled", True)], key=lambda x: x.get("order", 0))
+            header_row = [Paragraph(col.get("label", "").upper(), table_header_style) for col in cols]
+            table_rows = [header_row]
+            
+            rows_data = table.get("rows", []) or []
+            for row_data in rows_data:
+                row_cells = []
+                for col in cols:
+                    val = row_data.get(col["key"])
+                    if col.get("type") == "bool":
+                        val_str = "Yes" if val else "No"
+                    elif col.get("type") == "currency":
+                        val_str = f"${val:.2f}" if val else "—"
+                    else:
+                        val_str = str(val) if val is not None else "—"
+                    row_cells.append(Paragraph(val_str, table_cell_style))
+                table_rows.append(row_cells)
+            
+            if len(table_rows) > 1:
+                col_width = 540 / len(cols) if cols else 540
+                t_layout = Table(table_rows, colWidths=[col_width] * len(cols))
+                
+                t_style = [
+                    ('BACKGROUND', (0,0), (-1,0), primary_color),
+                    ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                    ('TOPPADDING', (0,0), (-1,-1), 6),
+                    ('GRID', (0,0), (-1,-1), 0.5, border_color),
+                ]
+                
+                for idx in range(1, len(table_rows)):
+                    if idx % 2 == 0:
+                        t_style.append(('BACKGROUND', (0, idx), (-1, idx), neutral_light))
+                
+                t_layout.setStyle(TableStyle(t_style))
+                story.append(t_layout)
+            else:
+                story.append(Paragraph("<i>No entries in this table.</i>", val_style))
+            
+            story.append(Spacer(1, 15))
+        
+        story.append(Spacer(1, 20))
+        sig_data = [
+            [Paragraph("<b>Prepared By:</b> ____________________", val_style), Paragraph("<b>Signature:</b> ____________________", val_style)]
+        ]
+        sig_table = Table(sig_data, colWidths=[270, 270])
+        sig_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'BOTTOM'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(sig_table)
+        
+        doc.build(story)
+        return True, f"PDF successfully exported to: {pdf_path}"
+    
+    except Exception as e:
+        return False, f"Error compiling PDF: {str(e)}"
+
+# ============================================================================
+# MAIN VIEWER APPLICATION
+# ============================================================================
 
 def get_asset_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -49,7 +355,6 @@ class OpenFormDesktopViewer:
         self.style.configure("TNotebook.Tab", background=self.card_bg, foreground=self.fg_color, padding=[12, 6], font=("Segoe UI", 10, "bold"))
         self.style.map("TNotebook.Tab", background=[("selected", self.primary_color)], foreground=[("selected", "#11111b")])
         
-        # Custom TCombobox styling to match dark theme
         self.style.configure("TCombobox", 
                              fieldbackground=self.card_bg, 
                              background=self.border_color, 
@@ -62,7 +367,6 @@ class OpenFormDesktopViewer:
         self.root.option_add("*TCombobox*Listbox.selectForeground", "#11111b")
         self.root.option_add("*TCombobox*Listbox.font", ("Segoe UI", 10))
         
-        # Custom Scrollbar styling
         self.style.layout('Custom.TScrollbar', [
             ('Vertical.Scrollbar.trough', {
                 'children': [
@@ -77,20 +381,16 @@ class OpenFormDesktopViewer:
                              borderwidth=0, 
                              arrowsize=0)
         
-        # UI bindings
-        self.field_inputs = {}  # field_key -> tk.Variable/Widget
-        self.table_inputs = {}  # table_key -> list of row dicts of widgets
+        self.field_inputs = {}
+        self.table_inputs = {}
         
-        # Bottom Status Bar (for non-disruptive notifications)
         self.status_bar = tk.Label(self.root, text="Ready", bd=1, relief=tk.SUNKEN, anchor=tk.W, 
                                    bg=self.card_bg, fg=self.fg_color, font=("Segoe UI", 9), padx=10, pady=4)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
         
-        # Main layout container
         self.main_container = ttk.Frame(self.root, padding=20)
         self.main_container.pack(fill=tk.BOTH, expand=True)
         
-        # File menu
         self.menu_bar = tk.Menu(self.root)
         self.file_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.file_menu.add_command(label="Open File...", command=self.load_file_dialog)
@@ -154,7 +454,6 @@ class OpenFormDesktopViewer:
             
         doc = self.doc_data
         
-        # Header banner
         header_frame = ttk.Frame(self.main_container)
         header_frame.pack(fill=tk.X, pady=(0, 15))
         
@@ -167,7 +466,6 @@ class OpenFormDesktopViewer:
         title_lbl = ttk.Label(title_frame, text="OpenForm Studio Session", style="Header.TLabel")
         title_lbl.pack(side=tk.LEFT)
         
-        # Action Buttons
         btn_frame = ttk.Frame(title_frame)
         btn_frame.pack(side=tk.RIGHT)
         
@@ -199,17 +497,11 @@ class OpenFormDesktopViewer:
         meta_lbl = ttk.Label(header_frame, text=f"File: {os.path.basename(self.file_path)}  |  Created: {doc['created_at'][:10]}", font=("Consolas", 9), foreground="#a6adc8")
         meta_lbl.pack(anchor=tk.W)
         
-        # Scrollable area for Form Content
         self.notebook = ttk.Notebook(self.main_container)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         
-        # Tab 1: Fields
         self.render_fields_tab()
-        
-        # Tab 2+: Tables
         self.render_tables_tabs()
-        
-        # Tab 3: Attachment
         self.render_attachment_tab()
 
     def render_fields_tab(self):
@@ -226,7 +518,6 @@ class OpenFormDesktopViewer:
             fields_scroll.configure(scrollregion=fields_scroll.bbox("all"))
         fields_frame.bind("<Configure>", on_configure)
         
-        # Bind mousewheel to canvas scroll
         def _on_mousewheel(event):
             fields_scroll.yview_scroll(int(-1 * (event.delta / 120)), "units")
         fields_scroll.bind("<Enter>", lambda e: fields_scroll.bind_all("<MouseWheel>", _on_mousewheel))
@@ -245,7 +536,6 @@ class OpenFormDesktopViewer:
             card.grid(row=row, column=col//2, padx=10, pady=10, sticky="nsew")
             fields_frame.grid_columnconfigure(col//2, weight=1)
             
-            # Label container
             lbl_frame = tk.Frame(card, bg=self.card_bg)
             lbl_frame.pack(fill=tk.X, padx=12, pady=(10, 2))
             
@@ -255,7 +545,6 @@ class OpenFormDesktopViewer:
             if field.get("required"):
                 tk.Label(lbl_frame, text="*", font=("Segoe UI", 9, "bold"), fg=self.danger_color, bg=self.card_bg).pack(side=tk.LEFT, padx=2)
             
-            # Value/Input area
             val = field.get("value")
             val_frame = tk.Frame(card, bg=self.card_bg)
             val_frame.pack(fill=tk.X, padx=12, pady=(2, 10))
@@ -275,6 +564,16 @@ class OpenFormDesktopViewer:
                     cb = ttk.Combobox(val_frame, textvariable=var, values=options, state="readonly", font=("Segoe UI", 10))
                     cb.pack(side=tk.LEFT, fill=tk.X, expand=True)
                     self.field_inputs[field["key"]] = var
+                elif field.get("type") == "currency":
+                    var = tk.StringVar(value=str(val) if val is not None else "")
+                    prefix_frame = tk.Frame(val_frame, bg=self.card_bg)
+                    prefix_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                    tk.Label(prefix_frame, text="$", font=("Segoe UI", 11, "bold"), fg=self.fg_color, bg=self.card_bg).pack(side=tk.LEFT, padx=(0, 4))
+                    ent = tk.Entry(prefix_frame, textvariable=var, bg=self.bg_color, fg=self.fg_color,
+                                   insertbackground=self.fg_color, relief="flat", font=("Segoe UI", 11),
+                                   highlightbackground=self.border_color, highlightcolor=self.primary_color, highlightthickness=1)
+                    ent.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=6, ipadx=4)
+                    self.field_inputs[field["key"]] = var
                 else:
                     var = tk.StringVar(value=str(val) if val is not None else "")
                     ent = tk.Entry(val_frame, textvariable=var, bg=self.bg_color, fg=self.fg_color,
@@ -283,12 +582,15 @@ class OpenFormDesktopViewer:
                     ent.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=6, ipadx=4)
                     self.field_inputs[field["key"]] = var
             else:
-                # View mode value
-                val_str = "YES" if val else "NO" if field.get("type") == "bool" else str(val) if val is not None else "—"
+                if field.get("type") == "bool":
+                    val_str = "YES" if val else "NO"
+                elif field.get("type") == "currency":
+                    val_str = f"${val:.2f}" if val else "—"
+                else:
+                    val_str = str(val) if val is not None else "—"
                 lbl_val = tk.Label(val_frame, text=val_str, font=("Segoe UI", 12, "bold"), fg=self.fg_color, bg=self.card_bg, wraplength=300, justify=tk.LEFT)
                 lbl_val.pack(side=tk.LEFT, fill=tk.X, expand=True)
                 
-                # Copy button
                 def make_copy_fn(text_to_copy):
                     return lambda: self.copy_to_clipboard(text_to_copy)
                     
@@ -306,7 +608,6 @@ class OpenFormDesktopViewer:
             tab = ttk.Frame(self.notebook, padding=10)
             self.notebook.add(tab, text=table["label"])
             
-            # Action controls for editing table rows
             if self.edit_mode:
                 ctrl_frame = ttk.Frame(tab)
                 ctrl_frame.pack(fill=tk.X, pady=(0, 10))
@@ -316,7 +617,6 @@ class OpenFormDesktopViewer:
                 btn_add.pack(side=tk.LEFT)
                 self.bind_hover(btn_add, "#b4befe", self.primary_color)
             
-            # Table scroll frame
             scroll_canvas = tk.Canvas(tab, bg=self.bg_color, highlightthickness=0)
             t_frame = ttk.Frame(scroll_canvas, padding=5)
             t_scroll = ttk.Scrollbar(tab, orient="vertical", command=scroll_canvas.yview, style="Custom.TScrollbar")
@@ -330,7 +630,6 @@ class OpenFormDesktopViewer:
                 return lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
             t_frame.bind("<Configure>", make_table_config(scroll_canvas))
             
-            # Bind mousewheel to canvas scroll
             def _make_mw_handler(canvas):
                 return lambda event: canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
             mw_handler = _make_mw_handler(scroll_canvas)
@@ -339,13 +638,11 @@ class OpenFormDesktopViewer:
             
             cols = sorted([c for c in table["columns"] if c.get("enabled", True)], key=lambda x: x.get("order", 0))
             
-            # Headers
             for col_idx, col in enumerate(cols):
                 lbl_h = tk.Label(t_frame, text=col["label"].upper(), font=("Segoe UI", 9, "bold"), fg=self.accent_color, bg=self.bg_color, pady=5)
                 lbl_h.grid(row=0, column=col_idx, padx=5, pady=5, sticky="ew")
                 
             if self.edit_mode:
-                # Extra header column for action delete
                 lbl_h = tk.Label(t_frame, text="", bg=self.bg_color)
                 lbl_h.grid(row=0, column=len(cols), padx=5, pady=5, sticky="ew")
                 
@@ -371,6 +668,15 @@ class OpenFormDesktopViewer:
                                          activebackground=self.bg_color)
                     chk.pack(anchor=tk.CENTER)
                     row_widgets[col["key"]] = var
+                elif col.get("type") == "currency":
+                    var = tk.StringVar(value=str(val) if val is not None else "")
+                    prefix_lbl = tk.Label(cell_frame, text="$", font=("Segoe UI", 9, "bold"), fg=self.fg_color, bg=self.bg_color)
+                    prefix_lbl.pack(side=tk.LEFT, padx=(0, 2))
+                    ent = tk.Entry(cell_frame, textvariable=var, bg=self.card_bg, fg=self.fg_color,
+                                   insertbackground=self.fg_color, relief="flat", font=("Segoe UI", 10),
+                                   highlightbackground=self.border_color, highlightcolor=self.primary_color, highlightthickness=1, width=15)
+                    ent.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=4, ipadx=3)
+                    row_widgets[col["key"]] = var
                 else:
                     var = tk.StringVar(value=str(val) if val is not None else "")
                     ent = tk.Entry(cell_frame, textvariable=var, bg=self.card_bg, fg=self.fg_color,
@@ -379,14 +685,17 @@ class OpenFormDesktopViewer:
                     ent.pack(fill=tk.X, ipady=4, ipadx=3)
                     row_widgets[col["key"]] = var
             else:
-                # View Mode cells
-                val_str = "Yes" if val else "No" if col.get("type") == "bool" else str(val) if val is not None else "—"
+                if col.get("type") == "bool":
+                    val_str = "Yes" if val else "No"
+                elif col.get("type") == "currency":
+                    val_str = f"${val:.2f}" if val else "—"
+                else:
+                    val_str = str(val) if val is not None else "—"
                 lbl = tk.Label(cell_frame, text=val_str, font=("Segoe UI", 10), fg=self.fg_color, bg=self.bg_color, anchor=tk.W)
                 lbl.pack(fill=tk.X, padx=5, pady=2)
                 row_widgets[col["key"]] = val
                 
         if self.edit_mode:
-            # Action Delete button
             del_frame = tk.Frame(container, bg=self.bg_color)
             del_frame.grid(row=row_grid_idx, column=len(cols), padx=3, pady=3, sticky="nsew")
             btn_del = tk.Button(del_frame, text="Delete", command=lambda tk=table_key, ri=row_idx: self.remove_table_row(tk, ri),
@@ -436,7 +745,6 @@ class OpenFormDesktopViewer:
         self.bind_hover(btn_save, "#b4befe", self.primary_color)
 
     def save_attachment_payload(self):
-        import base64
         att = self.doc_data.get("attachment")
         save_path = filedialog.asksaveasfilename(initialfile=att.get("file_name"))
         if save_path:
@@ -452,7 +760,6 @@ class OpenFormDesktopViewer:
 
     def toggle_edit_mode(self):
         if self.edit_mode:
-            # Revert unsaved UI bindings
             self.edit_mode = False
             self.render_document()
         else:
@@ -463,19 +770,17 @@ class OpenFormDesktopViewer:
         if not self.edit_mode or not self.doc_data:
             return
             
-        # Collect field updates
         for field in self.doc_data["fields"]:
             if field.get("enabled", True) and field["key"] in self.field_inputs:
                 input_val = self.field_inputs[field["key"]].get()
                 
-                # Cast numeric values correctly
                 if field.get("type") == "int":
                     if str(input_val).strip() == "":
                         field["value"] = None
                     else:
                         try: field["value"] = int(input_val)
                         except ValueError: field["value"] = input_val
-                elif field.get("type") == "decimal":
+                elif field.get("type") == "decimal" or field.get("type") == "currency":
                     if str(input_val).strip() == "":
                         field["value"] = None
                     else:
@@ -486,7 +791,6 @@ class OpenFormDesktopViewer:
                 else:
                     field["value"] = input_val
                 
-        # Collect table updates
         for table in self.doc_data.get("tables", []):
             if table.get("enabled", True) and table["key"] in self.table_inputs:
                 table_rows = []
@@ -497,14 +801,13 @@ class OpenFormDesktopViewer:
                         val_widget = row_vars.get(col["key"])
                         val = val_widget.get() if hasattr(val_widget, 'get') else val_widget
                         
-                        # Cast numeric values correctly
                         if col.get("type") == "int":
                             if str(val).strip() == "":
                                 val = None
                             else:
                                 try: val = int(val)
                                 except ValueError: pass
-                        elif col.get("type") == "decimal":
+                        elif col.get("type") == "decimal" or col.get("type") == "currency":
                             if str(val).strip() == "":
                                 val = None
                             else:
@@ -523,7 +826,6 @@ class OpenFormDesktopViewer:
             
         self.collect_inputs_in_memory()
                 
-        # Serialize back to file
         try:
             with open(self.file_path, 'w', encoding='utf-8') as f:
                 json.dump(self.doc_data, f, indent=2, ensure_ascii=False)
@@ -548,87 +850,8 @@ class OpenFormDesktopViewer:
         if self.edit_mode:
             self.collect_inputs_in_memory()
             
-        data = self.doc_data
-        errors = []
+        errors = validate_structure(self.doc_data)
         
-        required_keys = ["format", "format_version", "document_id", "document_type", "fields", "tables"]
-        for key in required_keys:
-            if key not in data:
-                errors.append(f"Missing root key: '{key}'")
-                
-        if data.get("format") != "OpenFormFile":
-            errors.append(f"Invalid format: '{data.get('format')}' (expected 'OpenFormFile')")
-            
-        doc_type = data.get("document_type", {})
-        if not isinstance(doc_type, dict) or "id" not in doc_type or "label" not in doc_type:
-            errors.append("Invalid 'document_type': must be an object with 'id' and 'label'")
-            
-        fields = data.get("fields", [])
-        if not isinstance(fields, list):
-            errors.append("'fields' must be a list")
-        else:
-            field_keys = set()
-            for idx, field in enumerate(fields):
-                if not isinstance(field, dict):
-                    errors.append(f"Field at index {idx} is invalid")
-                    continue
-                k = field.get("key")
-                if not k:
-                    errors.append(f"Field at index {idx} is missing 'key'")
-                    continue
-                if k in field_keys:
-                    errors.append(f"Duplicate field key: '{k}'")
-                else:
-                    field_keys.add(k)
-                if "type" not in field:
-                    errors.append(f"Field '{k}' is missing 'type'")
-                elif field["type"] not in ["text", "date", "int", "decimal", "bool", "select"]:
-                    errors.append(f"Field '{k}' has invalid type: '{field['type']}'")
-                if "label" not in field:
-                    errors.append(f"Field '{k}' is missing 'label'")
-                    
-                if field.get("required") and (field.get("value") is None or str(field.get("value")).strip() == ""):
-                    errors.append(f"Field '{field.get('label')}' is required but empty")
-                    
-        tables = data.get("tables", [])
-        if not isinstance(tables, list):
-            errors.append("'tables' must be a list")
-        else:
-            table_keys = set()
-            for idx, table in enumerate(tables):
-                if not isinstance(table, dict):
-                    errors.append(f"Table at index {idx} is invalid")
-                    continue
-                tk_key = table.get("key")
-                if not tk_key:
-                    errors.append(f"Table at index {idx} is missing 'key'")
-                    continue
-                if tk_key in table_keys:
-                    errors.append(f"Duplicate table key: '{tk_key}'")
-                else:
-                    table_keys.add(tk_key)
-                if "columns" not in table or not isinstance(table["columns"], list):
-                    errors.append(f"Table '{tk_key}' is missing 'columns' list")
-                    continue
-                col_keys = set()
-                for col in table["columns"]:
-                    ck = col.get("key")
-                    if not ck:
-                        errors.append(f"A column in table '{tk_key}' is missing 'key'")
-                        continue
-                    if ck in col_keys:
-                        errors.append(f"Duplicate column key '{ck}' in table '{tk_key}'")
-                    else:
-                        col_keys.add(ck)
-                        
-                rows = table.get("rows", []) or []
-                for r_idx, row in enumerate(rows):
-                    for col in table["columns"]:
-                        if col.get("required") and col.get("enabled"):
-                            cell_val = row.get(col["key"])
-                            if cell_val is None or str(cell_val).strip() == "":
-                                errors.append(f"Table '{table.get('label')}', Row {r_idx+1}: Column '{col.get('label')}' is required")
-                                
         if errors:
             err_msg = "\n".join(errors[:8])
             if len(errors) > 8:
@@ -647,28 +870,13 @@ class OpenFormDesktopViewer:
         if self.edit_mode:
             self.collect_inputs_in_memory()
             
-        import subprocess
-        if getattr(sys, 'frozen', False):
-            exporter = os.path.join(os.path.dirname(sys.executable), "OpenFormPdfExporter.exe")
+        success, message = export_to_pdf_internal(self.file_path)
+        
+        if success:
+            messagebox.showinfo("PDF Exported", message)
+            self.status_bar.config(text="PDF exported successfully!")
         else:
-            exporter = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export-pdf.py")
-            
-        cmd = []
-        if exporter.endswith(".py"):
-            cmd = [sys.executable, exporter, self.file_path]
-        else:
-            cmd = [exporter, self.file_path]
-            
-        try:
-            self.status_bar.config(text="Exporting to PDF...")
-            self.root.update_idletasks()
-            
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
-            pdf_path = str(Path(self.file_path).with_suffix(".pdf"))
-            messagebox.showinfo("PDF Exported", f"Successfully exported to PDF:\n{pdf_path}")
-            self.status_bar.config(text=f"Exported PDF to {os.path.basename(pdf_path)}")
-        except Exception as e:
-            messagebox.showerror("PDF Export Error", f"Failed to export to PDF:\n{str(e)}")
+            messagebox.showerror("PDF Export Error", f"Failed to export to PDF:\n{message}")
             self.status_bar.config(text="PDF Export failed.")
 
 if __name__ == "__main__":
