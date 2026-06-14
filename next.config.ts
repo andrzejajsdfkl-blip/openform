@@ -1,13 +1,19 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* Configuration Options */
+  
+  // TypeScript configuration
   typescript: {
     ignoreBuildErrors: true,
   },
+
+  // ESLint configuration
   eslint: {
     ignoreDuringBuilds: true,
   },
+
+  // Image optimization configuration
   images: {
     remotePatterns: [
       {
@@ -29,6 +35,49 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+
+  // Performance and optimization
+  compress: true,
+  productionBrowserSourceMaps: false,
+  serverExternalPackages: ['@genkit-ai/core', 'genkit', '@opentelemetry/sdk-node', '@opentelemetry/exporter-jaeger'],
+
+  // Security headers via middleware
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+    ];
+  },
+
+  // Redirects for legacy paths
+  async redirects() {
+    return [
+      {
+        source: '/documents',
+        destination: '/',
+        permanent: true,
+      },
+    ];
   },
 };
 

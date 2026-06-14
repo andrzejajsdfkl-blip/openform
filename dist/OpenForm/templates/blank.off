@@ -1,0 +1,14 @@
+{
+  "format": "OpenFormFile",
+  "format_version": "1.0",
+  "document_id": "",
+  "created_at": "",
+  "updated_at": "",
+  "document_type": {
+    "id": "new-document",
+    "label": "Blank Document",
+    "allow_file": false
+  },
+  "fields": [],
+  "tables": []
+}

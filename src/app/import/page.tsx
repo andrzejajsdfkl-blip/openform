@@ -9,16 +9,50 @@ import { Download, FileJson, CheckCircle, AlertCircle, Loader2 } from 'lucide-re
 import { useOpenFormStorage } from '@/lib/storage';
 import { DocumentInstance, DocumentType } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { aiAssistDocumentTypeImport } from '@/ai/flows/ai-assist-document-type-import';
+import { Suspense, useEffect } from 'react';
 
-export default function ImportPage() {
+function ImportContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tempId = searchParams.get('tempId');
   const { toast } = useToast();
   const { addDocument, upsertType, documentTypes } = useOpenFormStorage();
   const [importing, setImporting] = useState(false);
   const [importedDoc, setImportedDoc] = useState<DocumentInstance | null>(null);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tempId) {
+      const fetchLocalDoc = async () => {
+        setImporting(true);
+        try {
+          const res = await fetch(`/api/import-local?id=${tempId}`);
+          const resData = await res.json();
+          if (resData.success) {
+            const json = resData.data as DocumentInstance;
+            setImportedDoc(json);
+            
+            // Run AI analysis
+            const summary = await aiAssistDocumentTypeImport({
+              documentType: json.document_type,
+              fields: json.fields,
+              tables: json.tables
+            });
+            setAiSummary(summary.summary);
+          } else {
+            toast({ title: "Import Error", description: resData.error, variant: "destructive" });
+          }
+        } catch (err: any) {
+          toast({ title: "Import Failed", description: err.message, variant: "destructive" });
+        } finally {
+          setImporting(false);
+        }
+      };
+      fetchLocalDoc();
+    }
+  }, [tempId, toast]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -166,5 +200,13 @@ export default function ImportPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function ImportPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>}>
+      <ImportContent />
+    </Suspense>
   );
 }

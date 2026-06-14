@@ -1,0 +1,72 @@
+Windows Registry Editor Version 5.00
+
+; Register the .off file extension
+[HKEY_CURRENT_USER\Software\Classes\.off]
+@="OpenForm.Document"
+"Content Type"="application/x-openform"
+"PerceivedType"="document"
+
+; Register template creation under "Nowy" (New)
+[HKEY_CURRENT_USER\Software\Classes\.off\ShellNew]
+"FileName"="C:\\Program Files\\OpenForm\\templates\\blank.off"
+
+; Register MIME type
+[HKEY_CURRENT_USER\Software\Classes\MIME\Database\Content Type\application/x-openform]
+"Extension"=".off"
+
+; Open With "OpenForm" application list registration
+[HKEY_CURRENT_USER\Software\Classes\Applications\OpenForm.exe]
+"FriendlyAppName"="OpenForm"
+
+; Document Type Registration
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document]
+@="OpenForm Document"
+"FriendlyTypeName"="OpenForm Document"
+"InfoTip"="OpenForm structured form"
+"FormatVersion"="1.0"
+"Vendor"="OpenForm"
+
+; Set custom default icon
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\DefaultIcon]
+@="\"C:\\Program Files\\OpenForm\\icons\\openform.ico\",0"
+
+; Cascading Submenu integration
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm]
+"MUIVerb"="OpenForm"
+"SubCommands"=""
+"Icon"="\"C:\\Program Files\\OpenForm\\icons\\openform.ico\""
+
+; Open Option
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\open]
+@="Otwórz"
+
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\open\command]
+@="\"C:\\Program Files\\OpenForm\\OpenForm.exe\" \"%1\""
+
+; Edit Option
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\edit]
+@="Edytuj"
+
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\edit\command]
+@="\"C:\\Program Files\\OpenForm\\OpenFormEditor.exe\" \"%1\""
+
+; Validate Option
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\validate]
+@="Waliduj"
+
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\validate\command]
+@="\"C:\\Program Files\\OpenForm\\OpenFormValidator.exe\" \"%1\""
+
+; Export Option
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\export]
+@="Eksportuj do PDF"
+
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\export\command]
+@="\"C:\\Program Files\\OpenForm\\OpenFormPdfExporter.exe\" \"%1\""
+
+; Import Option (API Sync)
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\import]
+@="Importuj do serwera"
+
+[HKEY_CURRENT_USER\Software\Classes\OpenForm.Document\shell\OpenForm\shell\import\command]
+@="\"C:\\Program Files\\OpenForm\\openform-handler.bat\" \"%1\""

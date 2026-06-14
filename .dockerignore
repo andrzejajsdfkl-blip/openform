@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+.pnpm-debug.log
+
+# Production build
+build
+dist
+.next
+out
+
+# Development
+.env.local
+.env.*.local
+.env
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+# Documentation
+docs
+README.md
+CHANGELOG.md
+
+# Testing
+coverage
+.nyc_output
+*.lcov
+
+# Project specific
+.modified
+components.json
+studio.json
+apphosting.yaml
+openform-*.reg
+openform-*.bat
+openform-*.py
