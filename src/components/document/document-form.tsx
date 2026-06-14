@@ -151,6 +151,14 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
             return false;
           }
         }
+
+        // Currency validation
+        if (field.type === 'currency') {
+          if (!/^-?\d+(\.\d{0,2})?$/.test(String(val).trim())) {
+            toast({ title: "Validation Error", description: `Field "${field.label}" must be a valid currency amount (max 2 decimal places).`, variant: "destructive" });
+            return false;
+          }
+        }
       }
     }
 
@@ -185,6 +193,12 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                 return false;
               }
             }
+            if (col.type === 'currency') {
+              if (!/^-?\d+(\.\d{0,2})?$/.test(String(cellVal).trim())) {
+                toast({ title: "Validation Error", description: `Table "${table.label}", Row ${rIdx + 1}: Column "${col.label}" must be a valid currency amount.`, variant: "destructive" });
+                return false;
+              }
+            }
           }
         }
       }
@@ -199,9 +213,9 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
 
   return (
     <div className="space-y-8 pb-24 relative">
-      <div className="flex justify-between items-center bg-card/80 backdrop-blur-2xl p-6 rounded-3xl border border-border/40 shadow-2xl sticky top-6 z-50 transition-all hover:shadow-primary/5 hover:border-primary/30">
+      <div className="flex justify-between items-center bg-card/80 backdrop-blur-2xl p-6 rounded-3xl border border-border/40 shadow-2xl sticky top-6 z-50 transition-all hover:shadow-primary/5 hov[...]
         <div>
-          <h2 className="text-3xl font-headline font-bold text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">{initialData ? 'Edit' : 'New'} {type.label}</h2>
+          <h2 className="text-3xl font-headline font-bold text-foreground bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">{initialData ? 'Edit' : 'New'} {type.lab[...]
           <p className="text-xs text-primary/80 uppercase tracking-[0.2em] font-black mt-1">OpenForm Studio Session</p>
         </div>
         <div className="flex gap-4">
@@ -214,10 +228,10 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
               <ExternalLink className="w-4 h-4" /> <span className="font-bold">Open Reader</span>
             </Button>
           )}
-          <Button variant="outline" onClick={onCancel} className="gap-2 border-border/40 bg-card/50 hover:bg-background/80 hover:text-destructive hover:border-destructive/40 transition-all rounded-xl h-12 px-6">
+          <Button variant="outline" onClick={onCancel} className="gap-2 border-border/40 bg-card/50 hover:bg-background/80 hover:text-destructive hover:border-destructive/40 transition-all rounde[...]
             <X className="w-4 h-4" /> <span className="font-bold">Cancel</span>
           </Button>
-          <Button onClick={handleSave} className="gap-2 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all hover:scale-[1.02] rounded-xl h-12 px-8">
+          <Button onClick={handleSave} className="gap-2 bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold shadow-lg shadow-p[...]
             <Save className="w-5 h-5" /> Commit Record
           </Button>
         </div>
@@ -243,12 +257,12 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                   .sort((a, b) => a.order - b.order)
                   .map((field) => (
                     <div key={field.key} className="space-y-3 group/field">
-                      <Label className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/80 flex items-center gap-1.5 transition-colors group-focus-within/field:text-primary">
+                      <Label className="text-[11px] font-black uppercase tracking-[0.15em] text-muted-foreground/80 flex items-center gap-1.5 transition-colors group-focus-within/field:text-prima[...]
                         {field.label}
                         {field.required && <span className="text-destructive">*</span>}
                       </Label>
                       {field.type === 'bool' ? (
-                        <div className="flex items-center space-x-3 bg-background/50 hover:bg-background/80 transition-colors p-4 rounded-2xl border border-border/40 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 shadow-inner">
+                        <div className="flex items-center space-x-3 bg-background/50 hover:bg-background/80 transition-colors p-4 rounded-2xl border border-border/40 focus-within:border-primary/5[...]
                           <Checkbox 
                             id={field.key} 
                             checked={!!field.value} 
@@ -262,7 +276,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                           type="date" 
                           value={(field.value as string) || ''} 
                           onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner transition-all hover:bg-background/80"
+                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner tr[...]
                         />
                       ) : field.type === 'int' || field.type === 'decimal' ? (
                         <Input 
@@ -270,14 +284,26 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                           placeholder={field.placeholder}
                           value={(field.value as string | number) ?? ''} 
                           onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner transition-all hover:bg-background/80"
+                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner tr[...]
                         />
+                      ) : field.type === 'currency' ? (
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">$</span>
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder={field.placeholder || "0.00"}
+                            value={(field.value as string | number) ?? ''} 
+                            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                            className="bg-background/50 border-border/40 h-14 rounded-2xl pl-8 pr-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner tr[...]"
+                          />
+                        </div>
                       ) : field.type === 'select' ? (
                         <Select 
                           value={(field.value as string) || ''} 
                           onValueChange={(val) => handleFieldChange(field.key, val)}
                         >
-                          <SelectTrigger className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base w-full text-left font-medium focus:ring-1 focus:ring-primary focus:border-primary shadow-inner transition-all hover:bg-background/80">
+                          <SelectTrigger className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base w-full text-left font-medium focus:ring-1 focus:ring-primary focus:border-pri[...]
                             <SelectValue placeholder={field.placeholder || "Select option..."} />
                           </SelectTrigger>
                           <SelectContent className="rounded-xl border-border/40 bg-card/95 backdrop-blur-xl shadow-2xl">
@@ -297,7 +323,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                           placeholder={field.placeholder}
                           value={(field.value as string) || ''} 
                           onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner transition-all hover:bg-background/80"
+                          className="bg-background/50 border-border/40 h-14 rounded-2xl px-4 text-base focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner tr[...]
                         />
                       )}
                       {field.description && (
@@ -314,7 +340,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
               <div className="absolute top-0 left-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl -ml-32 -mt-32 transition-transform group-hover:scale-150 duration-700 pointer-events-none"></div>
               <CardHeader className="flex flex-row items-center justify-between border-b border-border/20 bg-background/30 p-6 md:p-8 relative z-10">
                 <CardTitle className="text-2xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">{table.label}</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => handleAddTableRow(table.key)} className="text-accent hover:text-accent-foreground hover:bg-accent hover:border-accent font-bold rounded-xl h-10 px-4 transition-all">
+                <Button variant="outline" size="sm" onClick={() => handleAddTableRow(table.key)} className="text-accent hover:text-accent-foreground hover:bg-accent hover:border-accent font-bold [...]
                   <Plus className="w-4 h-4 mr-2" /> Add Row
                 </Button>
               </CardHeader>
@@ -348,7 +374,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                                 type="date"
                                 value={(row[col.key] as string) ?? ''}
                                 onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
-                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hover:bg-background/60"
+                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hove[...]
                               />
                             ) : col.type === 'int' || col.type === 'decimal' ? (
                               <Input 
@@ -356,22 +382,33 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                                 step={col.type === 'decimal' ? 'any' : '1'}
                                 value={(row[col.key] as string | number) ?? ''}
                                 onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
-                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hover:bg-background/60"
+                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hove[...]
                               />
+                            ) : col.type === 'currency' ? (
+                              <div className="relative flex items-center">
+                                <span className="absolute left-2 text-muted-foreground font-semibold text-sm">$</span>
+                                <Input 
+                                  type="number"
+                                  step="0.01"
+                                  value={(row[col.key] as string | number) ?? ''}
+                                  onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
+                                  className="h-12 text-sm bg-background/30 border-border/30 rounded-xl pl-6 pr-3 focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hove[...]"
+                                />
+                              </div>
                             ) : (
                               <Input 
                                 value={(row[col.key] as string) ?? ''}
                                 onChange={(e) => handleTableRowChange(table.key, rowIndex, col.key, e.target.value)}
-                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hover:bg-background/60"
+                                className="h-12 text-sm bg-background/30 border-border/30 rounded-xl focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary shadow-inner hove[...]
                               />
                             )}
                           </TableCell>
                         ))}
                         <TableCell className="p-4 pr-6 align-middle">
                           <div className="flex justify-end">
-                             <Button variant="ghost" size="icon" onClick={() => handleRemoveTableRow(table.key, rowIndex)} className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all opacity-50 group-hover/row:opacity-100">
-                               <Trash2 className="w-5 h-5" />
-                             </Button>
+                             <Button variant="ghost" size="icon" onClick={() => handleRemoveTableRow(table.key, rowIndex)} className="text-muted-foreground/50 hover:text-destructive hover:bg-dest[...]
+                              <Trash2 className="w-5 h-5" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -384,7 +421,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
 
           {type.allow_file && (
             <Card className="border-border/40 bg-card/40 backdrop-blur-xl shadow-xl rounded-3xl overflow-hidden relative group">
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl -mr-32 -mb-32 transition-transform group-hover:scale-150 duration-700 pointer-events-none"></div>
+              <div className="absolute bottom-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl -mr-32 -mb-32 transition-transform group-hover:scale-150 duration-700 pointer-events-none"></di[...]
               <CardHeader className="border-b border-border/20 bg-background/30 p-8 relative z-10">
                 <CardTitle className="text-2xl font-headline flex items-center gap-3">
                   <div className="p-3 rounded-2xl bg-accent/10 border border-accent/20 shadow-inner">
@@ -396,7 +433,7 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
               <CardContent className="p-8 relative z-10">
                 <div className="space-y-4">
                   {attachment.included ? (
-                    <div className="bg-background/60 p-6 rounded-2xl border border-border/40 flex items-center gap-6 shadow-inner transition-all hover:bg-background/80 hover:border-accent/40 group/attachment">
+                    <div className="bg-background/60 p-6 rounded-2xl border border-border/40 flex items-center gap-6 shadow-inner transition-all hover:bg-background/80 hover:border-accent/40 grou[...]
                       <div className="bg-accent/10 p-4 rounded-xl border border-accent/20">
                          <FileText className="w-8 h-8 text-accent" />
                       </div>
@@ -404,18 +441,18 @@ export function DocumentForm({ type, initialData, onSave, onCancel }: DocumentFo
                         <p className="text-lg font-bold truncate text-foreground/90">{attachment.file_name}</p>
                         <p className="text-sm font-medium text-muted-foreground mt-1">{(attachment.size / 1024).toFixed(1)} KB • {attachment.mime_type}</p>
                       </div>
-                      <Button variant="outline" size="icon" onClick={() => setAttachment({ included: false, file_name: '', mime_type: '', size: 0, base64: '' })} className="h-12 w-12 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all opacity-50 group-hover/attachment:opacity-100">
+                      <Button variant="outline" size="icon" onClick={() => setAttachment({ included: false, file_name: '', mime_type: '', size: 0, base64: '' })} className="h-12 w-12 rounded-xl t[...]
                         <Trash2 className="w-5 h-5" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="border-2 border-dashed border-border/40 rounded-3xl p-12 text-center bg-background/30 hover:bg-background/60 hover:border-accent/50 hover:shadow-lg hover:shadow-accent/5 transition-all cursor-pointer relative group/dropzone">
+                    <div className="border-2 border-dashed border-border/40 rounded-3xl p-12 text-center bg-background/30 hover:bg-background/60 hover:border-accent/50 hover:shadow-lg hover:shado[...]
                        <div className="flex flex-col items-center justify-center h-full w-full absolute top-0 left-0">
                             <input type="file" className="opacity-0 w-full h-full cursor-pointer z-10" onChange={handleFileChange} />
                        </div>
                        <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover/dropzone:opacity-100 transition-opacity rounded-3xl pointer-events-none"></div>
                       <div className="space-y-4 pointer-events-none relative z-0 flex flex-col items-center">
-                        <div className="p-5 rounded-full bg-background border border-border/40 shadow-xl group-hover/dropzone:scale-110 group-hover/dropzone:border-accent/30 transition-all duration-300">
+                        <div className="p-5 rounded-full bg-background border border-border/40 shadow-xl group-hover/dropzone:scale-110 group-hover/dropzone:border-accent/30 transition-all durati[...]
                            <Plus className="w-8 h-8 text-muted-foreground group-hover/dropzone:text-accent transition-colors" />
                         </div>
                         <div>
