@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { StorageProvider } from '@/lib/storage';
 import { Toaster } from '@/components/ui/toaster';
+import { ThemeProvider } from '@/components/theme-provider';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -38,19 +39,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-        <meta name="color-scheme" content="dark" />
+        <meta name="color-scheme" content="light dark" />
         <meta name="description" content="Enterprise-grade semantic document management" />
       </head>
       <body className="font-body antialiased bg-background text-foreground transition-colors duration-300">
-        <StorageProvider>
-          {children}
-          <Toaster />
-        </StorageProvider>
+        <ThemeProvider>
+          <StorageProvider>
+            {children}
+            <Toaster />
+          </StorageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
